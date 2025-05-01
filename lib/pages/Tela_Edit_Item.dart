@@ -3,13 +3,17 @@ import 'package:go_router/go_router.dart';
 
 // Formulário para editar um item
 class EditItemPage extends StatelessWidget {
-  const EditItemPage({super.key});
+  final String? itemId;
+  
+  const EditItemPage({super.key, this.itemId});
 
   @override
   Widget build(BuildContext context) {
     final formKey = GlobalKey<FormState>(); // Chave para validação do formulário
+    final bool isEditing = itemId != null;
+    
     return Scaffold(
-      appBar: AppBar(title: const Text('Editar Item')),
+      appBar: AppBar(title: Text(isEditing ? 'Editar Item #$itemId' : 'Novo Item')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Form(

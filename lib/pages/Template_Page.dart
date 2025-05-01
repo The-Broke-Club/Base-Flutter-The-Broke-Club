@@ -5,8 +5,14 @@ import 'package:go_router/go_router.dart';
 class TemplatePage extends StatelessWidget {
   final String title;
   final Map<String, String> routes;
+  final Widget? body; // Parâmetro body adicionado
 
-  const TemplatePage({super.key, required this.title, required this.routes});
+  const TemplatePage({
+    super.key, 
+    required this.title, 
+    required this.routes,
+    this.body, // Parâmetro opcional
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -20,21 +26,28 @@ class TemplatePage extends StatelessWidget {
           title: Text(title),
           centerTitle: true, // Centraliza o título
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: routes.entries.map((entry) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: ElevatedButton(
-                onPressed: () => context.push(entry.key),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16), // Botões maiores
-                ),
-                child: Text(entry.value),
+        body: body ?? _buildDefaultBody(), // Usa body se fornecido, caso contrário usa o corpo padrão
+      ),
+    );
+  }
+
+  // Método para construir o corpo padrão com os botões de navegação
+  Widget _buildDefaultBody() {
+    return Builder(
+      builder: (context) => ListView(
+        padding: const EdgeInsets.all(20),
+        children: routes.entries.map((entry) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: ElevatedButton(
+              onPressed: () => context.push(entry.key),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.all(16), // Botões maiores
               ),
-            );
-          }).toList(),
-        ),
+              child: Text(entry.value),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

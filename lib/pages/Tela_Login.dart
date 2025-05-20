@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'template_page.dart';
+import '../Template_Page.dart';
 import '../utils/validators.dart';
 import '../utils/constants.dart';
 import '../models/auth_state.dart';
@@ -19,6 +18,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _emailFocusNode = FocusNode();
   bool _isLoading = false;
   bool _isSignUp = false;
 
@@ -26,10 +26,7 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).requestFocus(FocusNode());
-      _emailController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _emailController.text.length),
-      );
+      FocusScope.of(context).requestFocus(_emailFocusNode);
     });
   }
 
@@ -38,19 +35,8 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _emailFocusNode.dispose();
     super.dispose();
-  }
-
-  String _getFriendlyErrorMessage(dynamic error) {
-    final errorMessage = error.toString().toLowerCase();
-    if (errorMessage.contains('email-already-in-use')) {
-      return 'Este email já está registrado.';
-    } else if (errorMessage.contains('user-not-found')) {
-      return 'Nenhum usuário encontrado com este email.';
-    } else if (errorMessage.contains('wrong-password')) {
-      return 'Senha incorreta. Tente novamente.';
-    }
-    return 'Ocorreu um erro. Tente novamente.';
   }
 
   Future<void> _handleAuth() async {
@@ -95,17 +81,19 @@ class _LoginPageState extends State<LoginPage> {
             backgroundColor: Colors.green,
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
-        GoRouter.of(context).go('/home');
+        
+        // Adicionando o redirecionamento para a tela Home
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
         throw Exception(authState.errorMessage ?? Constants.genericErrorMessage);
       }
     } catch (e, stackTrace) {
       debugPrint('Erro de autenticação: $e\nStackTrace: $stackTrace');
       if (mounted) {
+        final authState = Provider.of<AuthState>(context, listen: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_getFriendlyErrorMessage(e)),
+            content: Text(authState.errorMessage ?? Constants.genericErrorMessage),
             backgroundColor: Colors.red,
           ),
         );
@@ -137,7 +125,9 @@ class _LoginPageState extends State<LoginPage> {
               backgroundColor: Colors.green,
             ),
           );
-          GoRouter.of(context).go('/home');
+          
+          // Adicionando o redirecionamento para a tela Home após login com Google
+          Navigator.pushReplacementNamed(context, '/home');
         } else {
           throw Exception(authState.errorMessage ?? Constants.genericErrorMessage);
         }
@@ -147,9 +137,10 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e, stackTrace) {
       debugPrint('Erro no Google Sign-In: $e\nStackTrace: $stackTrace');
       if (mounted) {
+        final authState = Provider.of<AuthState>(context, listen: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_getFriendlyErrorMessage(e)),
+            content: Text(authState.errorMessage ?? Constants.genericErrorMessage),
             backgroundColor: Colors.red,
           ),
         );
@@ -197,9 +188,10 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e, stackTrace) {
       debugPrint('Erro na recuperação de senha: $e\nStackTrace: $stackTrace');
       if (mounted) {
+        final authState = Provider.of<AuthState>(context, listen: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_getFriendlyErrorMessage(e)),
+            content: Text(authState.errorMessage ?? Constants.genericErrorMessage),
             backgroundColor: Colors.red,
           ),
         );
@@ -321,12 +313,14 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               filled: true,
                               fillColor: Colors.grey[100],
+                              hintText: 'Digite seu nome completo',
                             ),
                             validator: Validators.validateName,
                           ),
                         if (_isSignUp) const SizedBox(height: 15),
                         TextFormField(
                           controller: _emailController,
+                          focusNode: _emailFocusNode,
                           decoration: InputDecoration(
                             labelText: 'Email',
                             prefixIcon: const Icon(Icons.email),
@@ -335,6 +329,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             filled: true,
                             fillColor: Colors.grey[100],
+                            hintText: 'Digite seu email',
                           ),
                           keyboardType: TextInputType.emailAddress,
                           validator: Validators.validateEmail,
@@ -350,6 +345,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             filled: true,
                             fillColor: Colors.grey[100],
+                            hintText: 'Digite sua senha',
                           ),
                           obscureText: true,
                           validator: Validators.validatePassword,
@@ -423,8 +419,11 @@ class _LoginPageState extends State<LoginPage> {
                               ],
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Image.asset('assets/google_logo.png'),
+                              padding: const EdgeInsets.all(12.0),
+                              child: Image.asset(
+                                'assets/google_logo.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
                         ),

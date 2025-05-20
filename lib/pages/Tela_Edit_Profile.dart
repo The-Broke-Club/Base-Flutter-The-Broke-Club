@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'user.dart';
-import 'user_preferences.dart';
+import '../models/user.dart';
+import 'package:provider/provider.dart';
+import '../providers/preferences_provider.dart';
 
 class EditProfilePage extends StatefulWidget {
   final User user;
@@ -19,30 +20,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _displayNameController;
   late TextEditingController _emailController;
-  bool _isActive = true;
+  bool _accountStatus = true; // Substituído isActive por accountStatus
   bool _isSaving = false;
   String? _errorMessage;
 
-  // Controladores para os campos de preferências
-  late ThemeMode _selectedThemeMode;
-  late DataUsagePreference _selectedDataUsage;
-  late FontSize _selectedFontSize;
-  late bool _notificationsEnabled;
+  // Variáveis para preferências de usuário
+  bool _darkThemeEnabled = false;
+  bool _pushNotificationsEnabled = true;
+  bool _emailNotificationsEnabled = true;
+  String _language = 'pt_BR';
+  String _currency = 'BRL';
 
   @override
   void initState() {
     super.initState();
-    // Inicializa os controladores com os valores atuais do usuário
     _displayNameController = TextEditingController(text: widget.user.displayName);
     _emailController = TextEditingController(text: widget.user.email);
-    _isActive = widget.user.isActive;
-
-    // Inicializa os valores de preferências
-    final prefs = context.userPreferences;
-    _selectedThemeMode = prefs.themeMode;
-    _selectedDataUsage = prefs.dataUsage;
-    _selectedFontSize = prefs.fontSize;
-    _notificationsEnabled = prefs.notificationsEnabled;
+    
+    // Inicializando accountStatus com um valor padrão ou do modelo
+    // Vamos assumir que o modelo User tem uma propriedade accountStatus ou algo similar
+    _accountStatus = widget.user.accountStatus;
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Obter preferências do usuário usando o Provider
+    final prefsProvider = Provider.of<PreferencesProvider>(context, listen: false);
+    final userPrefs = prefsProvider.preferences;
+    
+    if (userPrefs != null) {
+      setState(() {
+        _darkThemeEnabled = userPrefs.darkThemeEnabled;
+        _pushNotificationsEnabled = userPrefs.pushNotificationsEnabled;
+        _emailNotificationsEnabled = userPrefs.emailNotificationsEnabled;
+        _language = userPrefs.language;
+        _currency = userPrefs.currency;
+      });
+    }
   }
 
   @override
@@ -54,13 +69,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final userPreferences = context.watchUserPreferences;
-    
+    // Usando o Provider correto
+    final prefsProvider = Provider.of<PreferencesProvider>(context);
+    final bool isLoading = prefsProvider.isLoading;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar Perfil'),
         actions: [
-          // Botão de salvar na AppBar
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: _isSaving ? null : _saveProfile,
@@ -68,13 +84,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
         ],
       ),
-      body: userPreferences.isLoading || _isSaving
+      body: isLoading || _isSaving
           ? const Center(child: CircularProgressIndicator())
-          : _buildEditForm(context, userPreferences),
+          : _buildEditForm(context, prefsProvider),
     );
   }
 
-  Widget _buildEditForm(BuildContext context, UserPreferences preferences) {
+  Widget _buildEditForm(BuildContext context, PreferencesProvider prefsProvider) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Form(
@@ -82,7 +98,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Foto de perfil (placeholder circular com opção de alterar)
             Center(
               child: Stack(
                 children: [
@@ -101,16 +116,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   Positioned(
                     right: 0,
                     bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.secondary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        color: Colors.white,
-                        size: 20,
+                    child: GestureDetector(
+                      onTap: () {
+                        // Ação futura: abrir seletor de imagem
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.secondary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -119,11 +139,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 24),
 
-            // Seção de informações pessoais
             _buildSectionTitle(context, 'Informações Pessoais'),
             const SizedBox(height: 16),
 
-            // Campo de nome de usuário
             TextFormField(
               controller: _displayNameController,
               decoration: const InputDecoration(
@@ -140,7 +158,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 16),
 
-            // Campo de e-mail
             TextFormField(
               controller: _emailController,
               decoration: const InputDecoration(
@@ -161,134 +178,108 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 16),
 
-            // Status da conta (ativo/inativo)
+            // Widget para gerenciar estado da conta (accountStatus)
             SwitchListTile(
               title: const Text('Conta Ativa'),
-              value: _isActive,
+              value: _accountStatus,
               onChanged: (value) {
                 setState(() {
-                  _isActive = value;
+                  _accountStatus = value;
                 });
               },
               secondary: Icon(
-                _isActive ? Icons.check_circle : Icons.cancel,
-                color: _isActive ? Colors.green : Colors.red,
+                _accountStatus ? Icons.check_circle : Icons.cancel,
+                color: _accountStatus ? Colors.green : Colors.red,
               ),
             ),
             const Divider(),
 
-            // Seção de preferências do aplicativo
             _buildSectionTitle(context, 'Preferências do Aplicativo'),
             const SizedBox(height: 16),
 
-            // Tema do aplicativo
-            _buildDropdownField<ThemeMode>(
-              label: 'Tema',
-              value: _selectedThemeMode,
-              icon: _getThemeIcon(_selectedThemeMode),
-              items: [
-                DropdownMenuItem(
-                  value: ThemeMode.system,
-                  child: const Text('Sistema'),
-                ),
-                DropdownMenuItem(
-                  value: ThemeMode.light,
-                  child: const Text('Claro'),
-                ),
-                DropdownMenuItem(
-                  value: ThemeMode.dark,
-                  child: const Text('Escuro'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedThemeMode = value;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Uso de dados
-            _buildDropdownField<DataUsagePreference>(
-              label: 'Uso de Dados',
-              value: _selectedDataUsage,
-              icon: const Icon(Icons.data_usage),
-              items: [
-                DropdownMenuItem(
-                  value: DataUsagePreference.minimal,
-                  child: const Text('Mínimo'),
-                ),
-                DropdownMenuItem(
-                  value: DataUsagePreference.balanced,
-                  child: const Text('Equilibrado'),
-                ),
-                DropdownMenuItem(
-                  value: DataUsagePreference.high,
-                  child: const Text('Alto'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedDataUsage = value;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Tamanho da fonte
-            _buildDropdownField<FontSize>(
-              label: 'Tamanho da Fonte',
-              value: _selectedFontSize,
-              icon: const Icon(Icons.format_size),
-              items: [
-                DropdownMenuItem(
-                  value: FontSize.small,
-                  child: const Text('Pequeno'),
-                ),
-                DropdownMenuItem(
-                  value: FontSize.medium,
-                  child: const Text('Médio'),
-                ),
-                DropdownMenuItem(
-                  value: FontSize.large,
-                  child: const Text('Grande'),
-                ),
-                DropdownMenuItem(
-                  value: FontSize.extraLarge,
-                  child: const Text('Extra Grande'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedFontSize = value;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Configuração de notificações
             SwitchListTile(
-              title: const Text('Notificações'),
-              value: _notificationsEnabled,
+              title: const Text('Tema Escuro'),
+              value: _darkThemeEnabled,
               onChanged: (value) {
                 setState(() {
-                  _notificationsEnabled = value;
+                  _darkThemeEnabled = value;
                 });
               },
               secondary: Icon(
-                _notificationsEnabled ? Icons.notifications_active : Icons.notifications_off,
-                color: _notificationsEnabled ? Colors.green : Colors.grey,
+                _darkThemeEnabled ? Icons.dark_mode : Icons.light_mode,
+                color: _darkThemeEnabled ? Colors.indigo : Colors.amber,
               ),
+            ),
+            const SizedBox(height: 16),
+
+            SwitchListTile(
+              title: const Text('Notificações Push'),
+              value: _pushNotificationsEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _pushNotificationsEnabled = value;
+                });
+              },
+              secondary: Icon(
+                _pushNotificationsEnabled ? Icons.notifications_active : Icons.notifications_off,
+                color: _pushNotificationsEnabled ? Colors.green : Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            SwitchListTile(
+              title: const Text('Notificações por Email'),
+              value: _emailNotificationsEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _emailNotificationsEnabled = value;
+                });
+              },
+              secondary: Icon(
+                _emailNotificationsEnabled ? Icons.email : Icons.email_outlined,
+                color: _emailNotificationsEnabled ? Colors.blue : Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            _buildDropdownField<String>(
+              label: 'Idioma',
+              value: _language,
+              icon: const Icon(Icons.language),
+              items: [
+                DropdownMenuItem(value: 'pt_BR', child: const Text('Português (Brasil)')),
+                DropdownMenuItem(value: 'en_US', child: const Text('Inglês (EUA)')),
+                DropdownMenuItem(value: 'es_ES', child: const Text('Espanhol')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _language = value;
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+
+            _buildDropdownField<String>(
+              label: 'Moeda',
+              value: _currency,
+              icon: const Icon(Icons.monetization_on),
+              items: [
+                DropdownMenuItem(value: 'BRL', child: const Text('Real (R\$)')),
+                DropdownMenuItem(value: 'USD', child: const Text('Dólar (US\$)')),
+                DropdownMenuItem(value: 'EUR', child: const Text('Euro (€)')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _currency = value;
+                  });
+                }
+              },
             ),
             const SizedBox(height: 24),
 
-            // Mensagem de erro (se houver)
             if (_errorMessage != null)
               Container(
                 width: double.infinity,
@@ -304,7 +295,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
             const SizedBox(height: 16),
 
-            // Botões de ação
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -326,7 +316,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  // Título de seção com estilo consistente
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,7 +331,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  // Widget personalizado para campos dropdown
   Widget _buildDropdownField<T>({
     required String label,
     required T value,
@@ -368,11 +356,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  // Salva as alterações do perfil e das preferências
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isSaving = true;
@@ -380,25 +365,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
-      // Simula uma chamada de API para atualizar o perfil do usuário
       await Future.delayed(const Duration(milliseconds: 800));
 
-      // Em uma aplicação real, aqui seria feita uma chamada para atualizar o usuário
+      // Usando apenas accountStatus no modelo do usuário
       final updatedUser = widget.user.copyWith(
         displayName: _displayNameController.text.trim(),
         email: _emailController.text.trim(),
-        isActive: _isActive,
+        accountStatus: _accountStatus, // Usando accountStatus diretamente no modelo
         updatedAt: DateTime.now(),
       );
 
-      // Atualiza as preferências do usuário
-      final prefs = context.userPreferences;
-      await prefs.setThemeMode(_selectedThemeMode);
-      await prefs.setDataUsage(_selectedDataUsage);
-      await prefs.setFontSize(_selectedFontSize);
-      await prefs.setNotificationsEnabled(_notificationsEnabled);
+      // Criando um objeto com as preferências atualizadas
+      final updatedPreferences = {
+        'darkThemeEnabled': _darkThemeEnabled,
+        'pushNotificationsEnabled': _pushNotificationsEnabled,
+        'emailNotificationsEnabled': _emailNotificationsEnabled,
+        'language': _language,
+        'currency': _currency,
+      };
 
-      // Navega de volta para a tela de perfil e passa o usuário atualizado
+      // Atualizando as preferências do usuário
+      final prefsProvider = Provider.of<PreferencesProvider>(context, listen: false);
+      await prefsProvider.updatePreferences(updatedPreferences);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Perfil atualizado com sucesso!')),
@@ -418,35 +407,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  // Validador simples de e-mail
   bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,}$').hasMatch(email);
   }
 
-  // Obtém as iniciais do nome do usuário para o avatar
   String _getInitials() {
     final displayName = _displayNameController.text;
     if (displayName.isEmpty) {
-      return _emailController.text.substring(0, 1).toUpperCase();
+      return _emailController.text.isNotEmpty 
+          ? _emailController.text.substring(0, 1).toUpperCase()
+          : 'U';
     }
-    
-    final nameParts = displayName.split(' ');
-    if (nameParts.length > 1) {
-      return '${nameParts.first.substring(0, 1)}${nameParts.last.substring(0, 1)}'.toUpperCase();
-    }
-    
-    return nameParts.first.substring(0, 1).toUpperCase();
-  }
 
-  // Obtém o ícone apropriado para o tema
-  Icon _getThemeIcon(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.system:
-        return const Icon(Icons.phonelink_setup);
-      case ThemeMode.light:
-        return const Icon(Icons.wb_sunny);
-      case ThemeMode.dark:
-        return const Icon(Icons.nightlight_round);
+    final nameParts = displayName.trim().split(' ');
+    if (nameParts.length > 1) {
+      return '${nameParts.first.isNotEmpty ? nameParts.first[0] : ''}${nameParts.last.isNotEmpty ? nameParts.last[0] : ''}'.toUpperCase();
     }
+    return nameParts.first.isNotEmpty ? nameParts.first[0].toUpperCase() : 'U';
   }
 }

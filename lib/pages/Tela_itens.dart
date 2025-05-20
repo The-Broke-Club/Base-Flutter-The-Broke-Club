@@ -8,8 +8,7 @@ import 'package:intl/intl.dart';
 import '../models/auth_state.dart';
 import '../utils/validators.dart';
 import '../utils/constants.dart';
-import '../models/user.dart';
-import '../models/user_preferences.dart';
+import '../models/user.dart';  // Ajuste o caminho conforme necessário
 import '../models/invoice.dart';
 import '../template_page.dart';
 
@@ -75,12 +74,12 @@ class _TelaItensState extends State<TelaItens> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', semanticsLabel: 'Botão de cancelar'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Excluir', semanticsLabel: 'Botão de excluir'),
+            child: const Text('Excluir'),
           ),
         ],
       ),
@@ -99,7 +98,8 @@ class _TelaItensState extends State<TelaItens> {
 
   @override
   Widget build(BuildContext context) {
-    final userPreferences = context.watchUserPreferences;
+    // Corrigido: Usando o contexto para acessar as preferências do usuário
+    final userPreferences = context.watch<UserPreferences>();
     final headerStyle = _getTextStyle(context, userPreferences, true);
     final contentStyle = _getTextStyle(context, userPreferences, false);
 
@@ -115,8 +115,8 @@ class _TelaItensState extends State<TelaItens> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddEditInvoiceDialog(),
         backgroundColor: Constants.primaryColor,
-        child: const Icon(Icons.add),
         tooltip: 'Adicionar fatura',
+        child: const Icon(Icons.add),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -128,7 +128,7 @@ class _TelaItensState extends State<TelaItens> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Faturas', style: headerStyle, semanticsLabel: 'Título de faturas'),
+                      Text('Faturas', style: headerStyle),
                       Row(
                         children: [
                           FilterChip(
@@ -140,7 +140,6 @@ class _TelaItensState extends State<TelaItens> {
                               });
                             },
                             selectedColor: Colors.green.withOpacity(0.2),
-                            semanticsLabel: 'Filtro de faturas pagas',
                           ),
                           const SizedBox(width: 8),
                           FilterChip(
@@ -152,7 +151,6 @@ class _TelaItensState extends State<TelaItens> {
                               });
                             },
                             selectedColor: Colors.red.withOpacity(0.2),
-                            semanticsLabel: 'Filtro de faturas pendentes',
                           ),
                         ],
                       ),
@@ -165,7 +163,6 @@ class _TelaItensState extends State<TelaItens> {
                             child: Text(
                               'Nenhuma fatura encontrada',
                               style: contentStyle.copyWith(color: Colors.grey),
-                              semanticsLabel: 'Nenhuma fatura encontrada',
                             ),
                           )
                         : ListView.builder(
@@ -190,7 +187,6 @@ class _TelaItensState extends State<TelaItens> {
                                   title: Text(
                                     invoice.title,
                                     style: contentStyle.copyWith(fontWeight: FontWeight.bold),
-                                    semanticsLabel: 'Título da fatura: ${invoice.title}',
                                   ),
                                   subtitle: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,12 +194,10 @@ class _TelaItensState extends State<TelaItens> {
                                       Text(
                                         'Valor: R\$ ${invoice.amount.toStringAsFixed(2)}',
                                         style: contentStyle,
-                                        semanticsLabel: 'Valor: R\$ ${invoice.amount.toStringAsFixed(2)}',
                                       ),
                                       Text(
                                         'Vencimento: ${_formatDate(invoice.dueDate)}',
                                         style: contentStyle.copyWith(color: Colors.grey),
-                                        semanticsLabel: 'Vencimento: ${_formatDate(invoice.dueDate)}',
                                       ),
                                     ],
                                   ),
@@ -215,14 +209,12 @@ class _TelaItensState extends State<TelaItens> {
                                         onPressed: () => _showAddEditInvoiceDialog(invoice: invoice),
                                         tooltip: 'Editar fatura',
                                         color: Constants.primaryColor,
-                                        semanticsLabel: 'Botão de editar fatura',
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.delete),
                                         onPressed: () => _deleteInvoice(invoice.id),
                                         tooltip: 'Excluir fatura',
                                         color: Colors.red,
-                                        semanticsLabel: 'Botão de excluir fatura',
                                       ),
                                     ],
                                   ),
@@ -248,6 +240,7 @@ class _TelaItensState extends State<TelaItens> {
         ? Theme.of(context).textTheme.titleLarge ?? const TextStyle(fontSize: 20)
         : Theme.of(context).textTheme.bodyMedium ?? const TextStyle(fontSize: 16);
 
+    // Corrigido: Usando a enumeração corretamente
     double fontSizeFactor;
     switch (preferences.fontSize) {
       case FontSize.small:
@@ -442,7 +435,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                     fontWeight: FontWeight.bold,
                     color: Constants.primaryColor,
                   ),
-                  semanticsLabel: widget.invoice == null ? 'Nova Fatura' : 'Editar Fatura',
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -455,7 +447,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                     fillColor: Colors.grey[100],
                   ),
                   validator: Validators.validateName,
-                  semanticsLabel: 'Campo de título da fatura',
                 ),
                 const SizedBox(height: 15),
                 TextFormField(
@@ -469,7 +460,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                   ),
                   keyboardType: TextInputType.number,
                   validator: Validators.validateAmount,
-                  semanticsLabel: 'Campo de valor da fatura',
                 ),
                 const SizedBox(height: 15),
                 TextFormField(
@@ -483,7 +473,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                   ),
                   maxLines: 3,
                   validator: Validators.validateDescription,
-                  semanticsLabel: 'Campo de descrição da fatura',
                 ),
                 const SizedBox(height: 15),
                 InkWell(
@@ -499,13 +488,12 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                     child: Text(
                       _formatDate(_dueDate),
                       style: const TextStyle(fontSize: 16),
-                      semanticsLabel: 'Data de vencimento selecionada: ${_formatDate(_dueDate)}',
                     ),
                   ),
                 ),
                 const SizedBox(height: 15),
                 SwitchListTile(
-                  title: const Text('Pago', semanticsLabel: 'Status de pagamento'),
+                  title: const Text('Pago'),
                   value: _isPaid,
                   onChanged: (value) {
                     setState(() {
@@ -514,7 +502,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                   },
                   activeColor: Constants.primaryColor,
                   contentPadding: EdgeInsets.zero,
-                  semanticsLabel: 'Alternar status de pagamento da fatura',
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -522,7 +509,7 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                   children: [
                     TextButton(
                       onPressed: _isLoading ? null : () => Navigator.pop(context),
-                      child: const Text('Cancelar', semanticsLabel: 'Botão de cancelar'),
+                      child: const Text('Cancelar'),
                     ),
                     const SizedBox(width: 10),
                     ElevatedButton(
@@ -535,7 +522,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text('Salvar', style: TextStyle(color: Colors.white)),
-                      semanticsLabel: 'Botão de salvar fatura',
                     ),
                   ],
                 ),

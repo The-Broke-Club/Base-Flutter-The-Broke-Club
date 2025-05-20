@@ -229,6 +229,25 @@ class PreferencesProvider with ChangeNotifier {
     }, errorPrefix: 'Erro ao atualizar todas as preferências') ?? false;
   }
 
+  // Este método é chamado pela tela Tela_Edit_Profile.dart
+  Future<void> updatePreferences(Map<String, dynamic> prefs) async {
+    await safeOperation(() async {
+      if (_preferences == null) await loadPreferences();
+      
+      // Atualiza as preferências de acordo com o mapa recebido
+      _preferences = UserPreferences(
+        darkThemeEnabled: prefs['darkThemeEnabled'] ?? _preferences?.darkThemeEnabled ?? false,
+        pushNotificationsEnabled: prefs['pushNotificationsEnabled'] ?? _preferences?.pushNotificationsEnabled ?? true,
+        emailNotificationsEnabled: prefs['emailNotificationsEnabled'] ?? _preferences?.emailNotificationsEnabled ?? true,
+        language: prefs['language'] ?? _preferences?.language ?? 'pt_BR',
+        currency: prefs['currency'] ?? _preferences?.currency ?? 'BRL',
+      );
+      
+      await _savePreferences();
+      return true;
+    }, errorPrefix: 'Erro ao atualizar preferências');
+  }
+
   // Resetar para as configurações padrão
   Future<bool> resetToDefaults() async {
     return await safeOperation(() async {

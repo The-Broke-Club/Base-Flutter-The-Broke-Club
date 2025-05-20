@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'Template_Page.dart';
-import 'financial_item.dart';
+import '../Template_Page.dart';
+import '../models/financial_item.dart';
 
 class ItemDetailsPage extends StatefulWidget {
   final String? itemId;
@@ -60,11 +60,16 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> {
     }
   }
 
-  // Formata o valor para exibição
-  String _formatCurrency(double value) {
-    final formatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    return formatter.format(value);
-  }
+    String formatCurrencySimple(double value) {
+  // Converte para string com 2 casas decimais
+  String valueStr = value.toStringAsFixed(2).replaceAll('.', ',');
+  
+  // Adiciona separador de milhar com expressão regular
+  valueStr = valueStr.replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
+  
+  return 'R\$ $valueStr';
+}
 
   // Formata a data para exibição
   String _formatDate(DateTime date) {

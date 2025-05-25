@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -9,9 +10,11 @@ import '../models/auth_state.dart';
 import '../utils/validators.dart';
 import '../utils/constants.dart';
 import '../models/user.dart';
-import '../models/user_preferences.dart';
 import '../models/invoice.dart';
 import '../template_page.dart';
+import '../blocs/invoice/invoice_bloc.dart';
+import '../blocs/invoice/invoice_event.dart';
+import '../blocs/invoice/invoice_state.dart';
 
 class TelaItens extends StatefulWidget {
   const TelaItens({super.key});
@@ -21,16 +24,17 @@ class TelaItens extends StatefulWidget {
 }
 
 class _TelaItensState extends State<TelaItens> {
-  final InvoiceService _invoiceService = InvoiceService();
-  List<Invoice> _invoices = [];
-  bool _isLoading = true;
   bool _showPaid = true;
   bool _showPending = true;
 
   @override
   void initState() {
     super.initState();
+    _checkAuthentication();
     _loadInvoices();
+  }
+
+  void _checkAuthentication() {
     final authState = Provider.of<AuthState>(context, listen: false);
     if (!authState.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -39,14 +43,8 @@ class _TelaItensState extends State<TelaItens> {
     }
   }
 
-  Future<void> _loadInvoices() async {
-    setState(() {
-      _isLoading = true;
-    });
-    _invoices = await _invoiceService.getInvoices();
-    setState(() {
-      _isLoading = false;
-    });
+  void _loadInvoices() {
+    context.read<InvoiceBloc>().add(LoadInvoices());
   }
 
   void _showAddEditInvoiceDialog({Invoice? invoice}) {
@@ -54,13 +52,12 @@ class _TelaItensState extends State<TelaItens> {
       context: context,
       builder: (context) => InvoiceFormDialog(
         invoice: invoice,
-        onSave: (updatedInvoice) async {
+        onSave: (updatedInvoice) {
           if (invoice == null) {
-            await _invoiceService.addInvoice(updatedInvoice);
+            context.read<InvoiceBloc>().add(AddInvoice(updatedInvoice));
           } else {
-            await _invoiceService.updateInvoice(updatedInvoice);
+            context.read<InvoiceBloc>().add(UpdateInvoice(updatedInvoice));
           }
-          await _loadInvoices();
         },
       ),
     );
@@ -75,39 +72,27 @@ class _TelaItensState extends State<TelaItens> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', semanticsLabel: 'Botão de cancelar'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Excluir', semanticsLabel: 'Botão de excluir'),
+            child: const Text('Excluir'),
           ),
         ],
       ),
     );
 
     if (confirm == true) {
-      await _invoiceService.deleteInvoice(id);
-      await _loadInvoices();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Fatura excluída com sucesso!')),
-        );
-      }
+      context.read<InvoiceBloc>().add(DeleteInvoice(id));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final userPreferences = context.watchUserPreferences;
+    final userPreferences = context.watch<UserPreferences>();
     final headerStyle = _getTextStyle(context, userPreferences, true);
     final contentStyle = _getTextStyle(context, userPreferences, false);
-
-    final filteredInvoices = _invoices.where((invoice) {
-      if (_showPaid && invoice.isPaid) return true;
-      if (_showPending && !invoice.isPaid) return true;
-      return false;
-    }).toList();
 
     return TemplatePage(
       title: 'Gerenciar Faturas',
@@ -115,126 +100,148 @@ class _TelaItensState extends State<TelaItens> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddEditInvoiceDialog(),
         backgroundColor: Constants.primaryColor,
-        child: const Icon(Icons.add),
         tooltip: 'Adicionar fatura',
+        child: const Icon(Icons.add),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(Constants.defaultPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Faturas', style: headerStyle, semanticsLabel: 'Título de faturas'),
-                      Row(
-                        children: [
-                          FilterChip(
-                            label: const Text('Pagas'),
-                            selected: _showPaid,
-                            onSelected: (value) {
-                              setState(() {
-                                _showPaid = value;
-                              });
-                            },
-                            selectedColor: Colors.green.withOpacity(0.2),
-                            semanticsLabel: 'Filtro de faturas pagas',
-                          ),
-                          const SizedBox(width: 8),
-                          FilterChip(
-                            label: const Text('Pendentes'),
-                            selected: _showPending,
-                            onSelected: (value) {
-                              setState(() {
-                                _showPending = value;
-                              });
-                            },
-                            selectedColor: Colors.red.withOpacity(0.2),
-                            semanticsLabel: 'Filtro de faturas pendentes',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: filteredInvoices.isEmpty
-                        ? Center(
-                            child: Text(
-                              'Nenhuma fatura encontrada',
-                              style: contentStyle.copyWith(color: Colors.grey),
-                              semanticsLabel: 'Nenhuma fatura encontrada',
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: filteredInvoices.length,
-                            itemBuilder: (context, index) {
-                              final invoice = filteredInvoices[index];
-                              return Card(
-                                elevation: 2,
-                                margin: const EdgeInsets.only(bottom: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(Constants.defaultBorderRadius),
-                                ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.all(16),
-                                  leading: CircleAvatar(
-                                    backgroundColor: invoice.isPaid ? Colors.green : Colors.red,
-                                    child: Icon(
-                                      invoice.isPaid ? Icons.check : Icons.warning,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    invoice.title,
-                                    style: contentStyle.copyWith(fontWeight: FontWeight.bold),
-                                    semanticsLabel: 'Título da fatura: ${invoice.title}',
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Valor: R\$ ${invoice.amount.toStringAsFixed(2)}',
-                                        style: contentStyle,
-                                        semanticsLabel: 'Valor: R\$ ${invoice.amount.toStringAsFixed(2)}',
-                                      ),
-                                      Text(
-                                        'Vencimento: ${_formatDate(invoice.dueDate)}',
-                                        style: contentStyle.copyWith(color: Colors.grey),
-                                        semanticsLabel: 'Vencimento: ${_formatDate(invoice.dueDate)}',
-                                      ),
-                                    ],
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit),
-                                        onPressed: () => _showAddEditInvoiceDialog(invoice: invoice),
-                                        tooltip: 'Editar fatura',
-                                        color: Constants.primaryColor,
-                                        semanticsLabel: 'Botão de editar fatura',
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete),
-                                        onPressed: () => _deleteInvoice(invoice.id),
-                                        tooltip: 'Excluir fatura',
-                                        color: Colors.red,
-                                        semanticsLabel: 'Botão de excluir fatura',
-                                      ),
-                                    ],
-                                  ),
-                                  onTap: () => context.push('/item-details', extra: invoice),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
+      body: BlocConsumer<InvoiceBloc, InvoiceState>(
+        listener: (context, state) {
+          if (state is InvoiceOperationSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.green,
               ),
+            );
+          } else if (state is InvoiceError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          if (state is InvoiceLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final invoices = state is InvoiceLoaded ? state.invoices : <Invoice>[];
+          final filteredInvoices = invoices.where((invoice) {
+            if (_showPaid && invoice.isPaid) return true;
+            if (_showPending && !invoice.isPaid) return true;
+            return false;
+          }).toList();
+
+          return Padding(
+            padding: const EdgeInsets.all(Constants.defaultPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Faturas', style: headerStyle),
+                    Row(
+                      children: [
+                        FilterChip(
+                          label: const Text('Pagas'),
+                          selected: _showPaid,
+                          onSelected: (value) {
+                            setState(() {
+                              _showPaid = value;
+                            });
+                          },
+                          selectedColor: Colors.green.withOpacity(0.2),
+                        ),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          label: const Text('Pendentes'),
+                          selected: _showPending,
+                          onSelected: (value) {
+                            setState(() {
+                              _showPending = value;
+                            });
+                          },
+                          selectedColor: Colors.red.withOpacity(0.2),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: filteredInvoices.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Nenhuma fatura encontrada',
+                            style: contentStyle.copyWith(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: filteredInvoices.length,
+                          itemBuilder: (context, index) {
+                            final invoice = filteredInvoices[index];
+                            return Card(
+                              elevation: 2,
+                              margin: const EdgeInsets.only(bottom: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(Constants.defaultBorderRadius),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.all(16),
+                                leading: CircleAvatar(
+                                  backgroundColor: invoice.isPaid ? Colors.green : Colors.red,
+                                  child: Icon(
+                                    invoice.isPaid ? Icons.check : Icons.warning,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                title: Text(
+                                  invoice.title,
+                                  style: contentStyle.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Valor: R\$ ${invoice.amount.toStringAsFixed(2)}',
+                                      style: contentStyle,
+                                    ),
+                                    Text(
+                                      'Vencimento: ${_formatDate(invoice.dueDate)}',
+                                      style: contentStyle.copyWith(color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit),
+                                      onPressed: () => _showAddEditInvoiceDialog(invoice: invoice),
+                                      tooltip: 'Editar fatura',
+                                      color: Constants.primaryColor,
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete),
+                                      onPressed: () => _deleteInvoice(invoice.id),
+                                      tooltip: 'Excluir fatura',
+                                      color: Colors.red,
+                                    ),
+                                  ],
+                                ),
+                                onTap: () => context.push('/item-details', extra: invoice),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
+          );
+        },
+      ),
     );
   }
 
@@ -271,6 +278,7 @@ class _TelaItensState extends State<TelaItens> {
   }
 }
 
+// Classe de serviço movida para fora - pode ser criada como arquivo separado
 class InvoiceService {
   Future<List<Invoice>> getInvoices() async {
     final prefs = await SharedPreferences.getInstance();
@@ -385,12 +393,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
       await widget.onSave(invoice);
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.invoice == null ? 'Fatura adicionada!' : 'Fatura atualizada!'),
-            backgroundColor: Colors.green,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -442,7 +444,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                     fontWeight: FontWeight.bold,
                     color: Constants.primaryColor,
                   ),
-                  semanticsLabel: widget.invoice == null ? 'Nova Fatura' : 'Editar Fatura',
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -455,7 +456,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                     fillColor: Colors.grey[100],
                   ),
                   validator: Validators.validateName,
-                  semanticsLabel: 'Campo de título da fatura',
                 ),
                 const SizedBox(height: 15),
                 TextFormField(
@@ -469,7 +469,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                   ),
                   keyboardType: TextInputType.number,
                   validator: Validators.validateAmount,
-                  semanticsLabel: 'Campo de valor da fatura',
                 ),
                 const SizedBox(height: 15),
                 TextFormField(
@@ -483,7 +482,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                   ),
                   maxLines: 3,
                   validator: Validators.validateDescription,
-                  semanticsLabel: 'Campo de descrição da fatura',
                 ),
                 const SizedBox(height: 15),
                 InkWell(
@@ -499,13 +497,12 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                     child: Text(
                       _formatDate(_dueDate),
                       style: const TextStyle(fontSize: 16),
-                      semanticsLabel: 'Data de vencimento selecionada: ${_formatDate(_dueDate)}',
                     ),
                   ),
                 ),
                 const SizedBox(height: 15),
                 SwitchListTile(
-                  title: const Text('Pago', semanticsLabel: 'Status de pagamento'),
+                  title: const Text('Pago'),
                   value: _isPaid,
                   onChanged: (value) {
                     setState(() {
@@ -514,7 +511,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                   },
                   activeColor: Constants.primaryColor,
                   contentPadding: EdgeInsets.zero,
-                  semanticsLabel: 'Alternar status de pagamento da fatura',
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -522,7 +518,7 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                   children: [
                     TextButton(
                       onPressed: _isLoading ? null : () => Navigator.pop(context),
-                      child: const Text('Cancelar', semanticsLabel: 'Botão de cancelar'),
+                      child: const Text('Cancelar'),
                     ),
                     const SizedBox(width: 10),
                     ElevatedButton(
@@ -535,7 +531,6 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text('Salvar', style: TextStyle(color: Colors.white)),
-                      semanticsLabel: 'Botão de salvar fatura',
                     ),
                   ],
                 ),

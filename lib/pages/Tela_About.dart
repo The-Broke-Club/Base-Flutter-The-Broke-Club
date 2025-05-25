@@ -19,7 +19,7 @@ class AboutPage extends StatelessWidget {
             ),
             SizedBox(height: 10),
             Text('Versão: 1.0.0'),
-            Text('Desenvolvido por: Seu Nome'),
+            Text('Desenvolvido por: Ni,Si,FE,ED'),
             Text('© 2025 The Broke Club. Todos os direitos reservados.'),
             SizedBox(height: 20),
             Text(

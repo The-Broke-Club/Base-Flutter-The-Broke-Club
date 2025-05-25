@@ -2,38 +2,32 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:crypto/crypto.dart';
 import '../models/user.dart';
 
 class AuthService extends ChangeNotifier {
-  // Lista de usuários em memória (simulação de banco de dados)
-  final List<User> _users = [
-    User(
-      id: '1',
-      email: 'teste@example.com',
-      displayName: 'Teste',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ),
-  ];
+  final List<User> _users = [];
   User? _currentUser;
   final Uuid _uuid = const Uuid();
-  final Map<String, String> _passwords = {
-    'teste@example.com': '123456', // Senha inicial para o usuário de teste
-  };
+  final Map<String, String> _passwords = {};
 
   AuthService() {
-    _loadUserData(); // Carrega dados na inicialização
+    _loadUserData();
   }
 
   User? get currentUser => _currentUser;
 
+  static String _hashPassword(String password) {
+    return sha256.convert(utf8.encode(password)).toString();
+  }
+
   Future<User?> signIn(String email, String password) async {
-    await Future.delayed(const Duration(seconds: 1)); // Simula delay de rede
+    await Future.delayed(const Duration(seconds: 1));
     try {
       if (!_users.any((user) => user.email == email)) {
         throw Exception('user-not-found');
       }
-      if (_passwords[email] != password) {
+      if (_passwords[email] != _hashPassword(password)) {
         throw Exception('wrong-password');
       }
       final user = _users.firstWhere((user) => user.email == email);
@@ -47,7 +41,7 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<User?> signUp(String email, String password) async {
-    await Future.delayed(const Duration(seconds: 1)); // Simula delay de rede
+    await Future.delayed(const Duration(seconds: 1));
     if (_users.any((user) => user.email == email)) {
       throw Exception('email-already-in-use');
     }
@@ -58,7 +52,7 @@ class AuthService extends ChangeNotifier {
       updatedAt: DateTime.now(),
     );
     _users.add(user);
-    _passwords[email] = password; // Armazena a senha (apenas para simulação)
+    _passwords[email] = _hashPassword(password);
     _currentUser = user;
     await _saveAuthState(user.id);
     notifyListeners();
@@ -66,7 +60,7 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<User?> signInWithGoogle() async {
-    await Future.delayed(const Duration(seconds: 1)); // Simula delay de rede
+    await Future.delayed(const Duration(seconds: 1));
     const googleEmail = 'googleuser@example.com';
     var user = _users.firstWhere(
       (user) => user.email == googleEmail,
@@ -79,7 +73,7 @@ class AuthService extends ChangeNotifier {
           updatedAt: DateTime.now(),
         );
         _users.add(newUser);
-        _passwords[googleEmail] = 'google123'; // Senha fictícia
+        _passwords[googleEmail] = _hashPassword('google123');
         return newUser;
       },
     );
@@ -90,11 +84,14 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> updateDisplayName(String displayName) async {
-    await Future.delayed(const Duration(seconds: 1)); // Simula delay de rede
+    await Future.delayed(const Duration(seconds: 1));
     if (_currentUser != null) {
       final index = _users.indexWhere((user) => user.id == _currentUser!.id);
       if (index != -1) {
-        _users[index] = _users[index].copyWith(displayName: displayName);
+        _users[index] = _users[index].copyWith(
+          displayName: displayName,
+          updatedAt: DateTime.now(),
+        );
         _currentUser = _users[index];
         await _saveUserData();
         notifyListeners();
@@ -103,11 +100,10 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> resetPassword(String email) async {
-    await Future.delayed(const Duration(seconds: 1)); // Simula delay de rede
+    await Future.delayed(const Duration(seconds: 1));
     if (!_users.any((user) => user.email == email)) {
       throw Exception('user-not-found');
     }
-    // Simula envio de email de recuperação
     return true;
   }
 
@@ -160,7 +156,6 @@ class AuthService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Erro ao carregar dados do usuário: $e');
-      // Mantém os dados iniciais se houver erro
     }
   }
 }

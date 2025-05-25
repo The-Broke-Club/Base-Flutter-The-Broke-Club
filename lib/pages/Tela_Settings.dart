@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'Template_Page.dart';
+import '../Template_Page.dart';
 
 // Página de configurações
 class SettingsPage extends StatelessWidget {

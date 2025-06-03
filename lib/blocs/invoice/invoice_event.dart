@@ -18,3 +18,4 @@ class DeleteInvoice extends InvoiceEvent {
   final String invoiceId;
   DeleteInvoice(this.invoiceId);
 }
+

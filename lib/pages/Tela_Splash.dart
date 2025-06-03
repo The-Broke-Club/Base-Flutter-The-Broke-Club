@@ -7,7 +7,7 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TemplatePage(
+    return const TemplatePage(
       title: 'Bem-vindo ao The Broke Club',
       routes: {'/login': 'Ir para Login'},
     );

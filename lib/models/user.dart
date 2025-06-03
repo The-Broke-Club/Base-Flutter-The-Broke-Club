@@ -78,7 +78,10 @@ class User {
   final String? displayName;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final bool accountStatus; // Adicionado campo accountStatus
+  final bool accountStatus;
+  final String? phone;     // ADICIONADO
+  final String? bio;       // ADICIONADO  
+  final String? photoURL;  // ADICIONADO
 
   User({
     required this.id,
@@ -86,7 +89,10 @@ class User {
     this.displayName,
     required this.createdAt,
     required this.updatedAt,
-    this.accountStatus = true, // Por padrão, conta ativa
+    this.accountStatus = true,
+    this.phone,     // ADICIONADO
+    this.bio,       // ADICIONADO
+    this.photoURL,  // ADICIONADO
   }) {
     if (!_isValidEmail(email)) {
       throw ArgumentError('Email inválido: $email');
@@ -104,7 +110,10 @@ class User {
     String? displayName,
     DateTime? createdAt,
     DateTime? updatedAt,
-    bool? accountStatus, // Adicionado ao copyWith
+    bool? accountStatus,
+    String? phone,     // ADICIONADO
+    String? bio,       // ADICIONADO
+    String? photoURL, // Adicionado ao copyWith
   }) {
     return User(
       id: id ?? this.id,
@@ -112,7 +121,10 @@ class User {
       displayName: displayName ?? this.displayName,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      accountStatus: accountStatus ?? this.accountStatus, // Usado no copyWith
+      accountStatus: accountStatus ?? this.accountStatus,
+      phone: phone ?? this.phone,         // ADICIONADO
+      bio: bio ?? this.bio,               // ADICIONADO
+      photoURL: photoURL ?? this.photoURL, // Usado no copyWith
     );
   }
 
@@ -123,7 +135,10 @@ class User {
       'displayName': displayName,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
-      'accountStatus': accountStatus, // Adicionado ao toJson
+      'accountStatus': accountStatus,
+      'phone': phone,     // ADICIONADO
+      'bio': bio,         // ADICIONADO
+      'photoURL': photoURL, // Adicionado ao toJson
     };
   }
 
@@ -134,7 +149,10 @@ class User {
       displayName: json['displayName'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : DateTime.now(),
-      accountStatus: json['accountStatus'] ?? true, // Adicionado ao fromJson
+      accountStatus: json['accountStatus'] ?? true,
+      phone: json['phone'],         // ADICIONADO
+      bio: json['bio'],             // ADICIONADO
+      photoURL: json['photoURL'],
     );
   }
 
@@ -145,7 +163,10 @@ class User {
       displayName: 'Sample User',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
-      accountStatus: true, // Adicionado ao exemplo
+      accountStatus: true,
+      phone: '+55 11 99999-9999',      // ADICIONADO
+      bio: 'Membro do The Broke Club', // ADICIONADO
+      photoURL: null, 
     );
   }
 
@@ -159,7 +180,10 @@ class User {
           displayName == other.displayName &&
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
-          accountStatus == other.accountStatus; // Adicionado ao operador ==
+          accountStatus == other.accountStatus &&
+          phone == other.phone &&         // ADICIONADO
+          bio == other.bio &&             // ADICIONADO
+          photoURL == other.photoURL; // Adicionado ao operador ==
 
   @override
   int get hashCode =>
@@ -168,5 +192,8 @@ class User {
       displayName.hashCode ^
       createdAt.hashCode ^
       updatedAt.hashCode ^
-      accountStatus.hashCode; // Adicionado ao hashCode
+      accountStatus.hashCode ^
+      phone.hashCode ^      // ADICIONADO
+      bio.hashCode ^        // ADICIONADO
+      photoURL.hashCode; // Adicionado ao hashCode
 }

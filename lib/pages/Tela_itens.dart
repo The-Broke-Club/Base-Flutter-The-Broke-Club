@@ -439,7 +439,7 @@ class _InvoiceFormDialogState extends State<InvoiceFormDialog> {
               children: [
                 Text(
                   widget.invoice == null ? 'Nova Fatura' : 'Editar Fatura',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Constants.primaryColor,

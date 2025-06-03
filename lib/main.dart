@@ -5,9 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'pages/Tela_Login.dart';
 import 'pages/Tela_Home.dart';
+import 'pages/Tela_Settings.dart'; // Importação do arquivo correto
 import 'pages/Tela_Profile.dart';
 import 'pages/Tela_Itens.dart';
-import 'pages/Tela_Edit_Profile.dart';
 import 'models/auth_state.dart';
 import 'services/auth_service.dart';
 import 'repositories/auth_repository.dart';
@@ -27,13 +27,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
+          providers: [
         ChangeNotifierProvider(create: (context) => AuthService()),
         ChangeNotifierProvider(create: (context) => AuthState(context)),
         ChangeNotifierProvider(create: (context) => UserPreferences()),
-        Provider(create: (context) => AuthRepository),
+        Provider(create: (context) => AuthRepository(context.read<AuthService>())),
       ],
-      child: MultiBlocProvider(
+          child: MultiBlocProvider(
         providers: [
           BlocProvider(
             create: (context) => LoginBloc(context.read<AuthRepository>()),
@@ -90,17 +90,17 @@ final GoRouter _router = GoRouter(
       path: '/invoices',
       builder: (context, state) => const TelaItens(),
     ),
-    GoRoute(
-      path: '/edit-profile',
-      builder: (context, state) {
-        final authState = Provider.of<AuthState>(context, listen: false);
-        final user = state.extra as User? ?? authState.user ?? User.createSample();
-        return EditProfilePage(user: user);
-      },
-    ),
+    // GoRoute(
+    //   path: '/edit-profile',
+    //   builder: (context, state) {
+    //     final authState = Provider.of<AuthState>(context, listen: false);
+    //     final user = state.extra as User? ?? authState.user ?? User.createSample();
+    //     return EditProfilePage(user: user);
+    //   },
+    // ),
     GoRoute(
       path: '/settings',
-      builder: (context, state) => const SettingsPage(),
+      builder: (context, state) => const SettingsPage(), // Agora usa a classe do arquivo Tela_Settings.dart
     ),
     GoRoute(
       path: '/item-details',
@@ -129,18 +129,6 @@ final GoRouter _router = GoRouter(
     body: Center(child: Text('Página não encontrada: ${state.uri}')),
   ),
 );
-
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Configurações')),
-      body: const Center(child: Text('Configurações do aplicativo')),
-    );
-  }
-}
 
 class ItemDetailsPage extends StatelessWidget {
   final ItemData? item;
